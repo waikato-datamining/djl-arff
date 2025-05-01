@@ -283,10 +283,32 @@ public class ArffDataset extends TabularDataset {
    * @return a list of column name
    */
   public List<String> getColumnNames() {
-    if (header.isEmpty()) {
+    if ((header == null) || header.isEmpty()) {
       return Collections.emptyList();
     }
     return colNames;
+  }
+
+  /**
+   * Returns the attribute type for the specified column.
+   *
+   * @param name the name of the column to get the type for
+   * @return the type, null if no dataset info available
+   */
+  public AttributeType getColumnType(String name) {
+    if ((header == null) || header.isEmpty())
+      return null;
+    return colTypes.get(attLookUp.get(name));
+  }
+
+  /**
+   * Returns the dataset header information.
+   * Information for each attribute in the sequence they appear: name, type, format (only date attributes).
+   *
+   * @return the header info
+   */
+  public List<Map<String,String>> getHeader() {
+    return header;
   }
 
   /** Used to build a {@link ArffDataset}. */

@@ -18,6 +18,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,7 +29,8 @@ import java.util.zip.GZIPInputStream;
 
 /**
  * {@code ArffDataset} represents the dataset that is stored in an .arff[.gz] file.
- * Only supports NUMERIC, NOMINAL and STRING attributes.
+ * Only supports NUMERIC, NOMINAL, STRING and DATE attributes. DATE attributes get parsed
+ * and the epoch time is stored as string, i.e., treated as NUMERIC attribute.
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
@@ -46,6 +49,7 @@ public class ArffDataset extends TabularDataset {
     NUMERIC,
     NOMINAL,
     STRING,
+    DATE,
   }
 
   protected URL arffUrl;
@@ -79,12 +83,14 @@ public class ArffDataset extends TabularDataset {
    *
    * @param line	the line to parse
    * @return		the extracted data
+   * @throws IOException	if parsing fails, e.g., invalid date format
    */
-  protected HashMap<String,String> parseAttribute(String line) {
+  protected HashMap<String,String> parseAttribute(String line) throws IOException {
     HashMap<String,String>	result;
     boolean			quoted;
     String 			current;
     String			lower;
+    String			format;
 
     result  = new HashMap<>();
     current = line.replace("\t", " ");
@@ -111,10 +117,30 @@ public class ArffDataset extends TabularDataset {
       result.put("type", AttributeType.NUMERIC.toString());
     else if (lower.startsWith("string"))
       result.put("type", AttributeType.STRING.toString());
+    else if (lower.startsWith("date"))
+      result.put("type", AttributeType.DATE.toString());
     else if (lower.startsWith("{"))
       result.put("type", AttributeType.NOMINAL.toString());
     else
       throw new IllegalStateException("Unsupported attribute: " + current);
+
+    // date format
+    if (result.get("type").equals(AttributeType.DATE.toString())) {
+      current = current.substring(5).trim();   // remove "date "
+      if (current.startsWith("'"))
+	format = Utils.unquote(current);
+      else if (current.startsWith("\""))
+	format = Utils.unDoubleQuote(current);
+      else
+	format = current;
+      try {
+	new SimpleDateFormat(format);
+	result.put("format", format);
+      }
+      catch (Exception e) {
+	throw new IllegalStateException("Invalid date format: " + format);
+      }
+    }
 
     return result;
   }
@@ -126,21 +152,23 @@ public class ArffDataset extends TabularDataset {
    * @throws IOException	if reading fails
    */
   protected void parseDataset(Reader r) throws IOException {
-    BufferedReader 	reader;
-    String		line;
-    String		lower;
-    boolean 		isHeader;
-    int 		lineIndex;
-    String[]		cells;
-    int			i;
-    Map<String,String>	attInfo;
-    List<String>	row;
+    BufferedReader 		reader;
+    String			line;
+    String			lower;
+    boolean 			isHeader;
+    int 			lineIndex;
+    String[]			cells;
+    int				i;
+    Map<String,String>		attInfo;
+    List<String>		row;
+    Map<Integer, DateFormat>	formats;
 
     data      = new ArrayList<>();
     header    = new ArrayList<>();
     colNames  = new ArrayList<>();
     colTypes  = new ArrayList<>();
     attLookUp = new HashMap<>();
+    formats   = new HashMap<>();
 
     if (r instanceof BufferedReader)
       reader = (BufferedReader) r;
@@ -169,6 +197,8 @@ public class ArffDataset extends TabularDataset {
 	    colNames.add(attInfo.get("name"));
 	    colTypes.add(AttributeType.valueOf(attInfo.get("type")));
 	    attLookUp.put(attInfo.get("name"), attLookUp.size());
+	    if (colTypes.get(colTypes.size() - 1) == AttributeType.DATE)
+	      formats.put(colTypes.size() - 1, new SimpleDateFormat(attInfo.get("format")));
 	    header.add(attInfo);
 	  }
 	  else if (lower.startsWith(KEYWORD_DATA)) {
@@ -194,6 +224,9 @@ public class ArffDataset extends TabularDataset {
 	      case NOMINAL:
 	      case STRING:
 		row.add(cells[i]);
+		break;
+	      case DATE:
+		row.add("" + formats.get(i).parse(cells[i]).getTime());
 		break;
 	      default:
 		throw new IOException("Unhandled attribute type: " + colTypes.get(i));

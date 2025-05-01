@@ -4,6 +4,7 @@ Reading ARFF datasets using [Deep Java Library (DJL)](https://djl.ai/).
 
 ## Examples
 
+* [Load airline dataset](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadAirline.java)
 * [Load bodyfat dataset](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadBodyfat.java)
 
 

@@ -2,10 +2,10 @@
 Reading ARFF datasets using [Deep Java Library (DJL)](https://djl.ai/).
 
 Rather than explicitly defining all the features and labels manually, 
-the dataset builder a number of methods that simplify specifying
+the dataset builder offers a number of methods that simplify specifying
 which columns are to be used as labels (i.e., class attributes/output variables) 
 and which as features (i.e., input variables). It is also possible to
-specify columns to ignore.
+specify columns to ignore completely.
 
 Works with DJL version 0.21.0 and later.
 

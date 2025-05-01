@@ -37,7 +37,8 @@ public class LoadBodyfatExplicit {
 			    .addNumericLabel("class")
 			    .build();
     dataset.prepare();
-    System.out.println(dataset.getRelationName());
+    System.out.println(dataset.toInfo());
+    System.out.println("Data");
     for (int i = 0; i < dataset.size(); i++) {
       for (int n = 0; n < dataset.getFeatureSize(); n++) {
 	String cell = dataset.getCell(i, dataset.getFeatures().get(n).getName());

@@ -6,6 +6,7 @@
 package nz.ac.waikato.cms.adams.djl.dataset;
 
 import ai.djl.basicdataset.tabular.TabularDataset;
+import ai.djl.basicdataset.tabular.utils.Feature;
 import ai.djl.util.Progress;
 
 import java.io.BufferedInputStream;
@@ -147,17 +148,46 @@ public class ArffDataset extends TabularDataset {
     return header;
   }
 
+  /**
+   * Generates a string with information about the features/labels.
+   *
+   * @return the info
+   */
+  public String toInfo() {
+    StringBuilder	result;
+
+    result = new StringBuilder("Relation").append(": ").append(getRelationName());
+
+    result.append("\n").append("Features: ").append(getFeatureSize());
+    for (Feature feature: getFeatures()) {
+      result.append("\n");
+      result.append("- ").append(feature.getName());
+      result.append("/");
+      result.append(getColumnType(feature.getName()));
+      result.append("/");
+      result.append(feature.getFeaturizer().getClass().getSimpleName());
+    }
+
+    if (getFeatureSize() > 0) {
+      result.append("\n").append("Labels: ").append(getLabelSize());
+      for (Feature feature : getLabels()) {
+	result.append("\n");
+	result.append("- ").append(feature.getName());
+	result.append("/");
+	result.append(getColumnType(feature.getName()));
+	result.append("/");
+	result.append(feature.getFeaturizer().getClass().getSimpleName());
+      }
+    }
+
+    return result.toString();
+  }
+
   /** Used to build a {@link ArffDataset}. */
   public static class ArffBuilder<T extends ArffDataset.ArffBuilder<T>>
     extends TabularDataset.BaseBuilder<T> {
 
     protected URL arffUrl;
-
-    protected int classIndex;
-
-    protected Integer actualClassIndex;
-
-    protected Boolean classIsLast;
 
     protected Set<String> classColumns;
 
@@ -177,12 +207,10 @@ public class ArffDataset extends TabularDataset {
     protected ArffBuilder() {
       super();
 
-      classIndex              = -1;
-      actualClassIndex        = null;
-      classAdded              = false;
-      classColumns            = new HashSet<>();
-      ignoredColumns          = new HashSet<>();
-      allFeaturesAdded = false;
+      classAdded            = false;
+      classColumns          = new HashSet<>();
+      ignoredColumns        = new HashSet<>();
+      allFeaturesAdded      = false;
       matchingFeaturesAdded = new HashSet<>();
     }
 
@@ -278,9 +306,15 @@ public class ArffDataset extends TabularDataset {
      * @return this builder
      */
     public T classIndex(int index) {
+      ArffParser	parser;
+
       if (index < -1)
 	index = -1;
-      classIndex = index;
+      if (index == -1)
+	return self();
+
+      parser = getParser();
+      addClassColumn(parser.getColNames().get(index));
       return self();
     }
 
@@ -290,29 +324,11 @@ public class ArffDataset extends TabularDataset {
      * @return this builder
      */
     public T classIsLast() {
-      classIsLast = true;
+      ArffParser	parser;
+
+      parser = getParser();
+      addClassColumn(parser.getColNames().get(parser.getColNames().size() - 1));
       return self();
-    }
-
-    /**
-     * Returns the actual class index.
-     *
-     * @return the index, -1 if no class attribute
-     */
-    protected int actualClassIndex() {
-      int	index;
-
-      if (actualClassIndex == null) {
-	parser = getParser();
-	index  = classIndex;
-	if ((classIsLast != null) && classIsLast)
-	  index = parser.getColNames().size() - 1;
-	if (index >= parser.getColNames().size())
-	  throw new IllegalArgumentException("0-based class index out of range (#atts=" + parser.getColNames() + "): " + index);
-	actualClassIndex = index;
-      }
-
-      return actualClassIndex;
     }
 
     /**
@@ -323,8 +339,7 @@ public class ArffDataset extends TabularDataset {
      * @return true if class column
      */
     protected boolean isClassColumn(ArffParser parser, int index) {
-      return (classColumns.contains(parser.getColNames().get(index)))
-	       || (index == actualClassIndex());
+      return classColumns.contains(parser.getColNames().get(index));
     }
 
     /**
@@ -375,37 +390,13 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
-     * Adds the class attribute, if defined.
+     * Adds the class attribute(s).
      * Loads the ARFF file and parses the header.
      *
-     * @return this builder
-     * @see #classIsLast()
-     * @see #classIndex(int)
-     */
-    public T addClassColumn() {
-      ArffParser	parser;
-      int 		actClassIndex;
-
-      if (classAdded)
-	return self();
-
-      classAdded      = true;
-      parser          = getParser();
-      actClassIndex   = actualClassIndex();
-      if (actClassIndex > -1)
-	addColumn(parser, actClassIndex);
-
-      return self();
-    }
-
-    /**
-     * Adds the class attribute, if defined.
-     * Loads the ARFF file and parses the header.
-     *
-     * @param colNames the column(s) to declare as class attribute(s)
+     * @param colNames the column(s) to use as class attribute(s)
      * @return this builder
      */
-    public T addClassColumns(String... colNames) {
+    public T addClassColumn(String... colNames) {
       ArffParser	parser;
       int		index;
 

@@ -10,7 +10,7 @@ import nz.ac.waikato.cms.adams.djl.dataset.ArffDataset;
 import java.nio.file.Path;
 
 /**
- * Just loads an ARFF dataset and outputs the data.
+ * Loads the iris ARFF file, but only uses features that match a regular expression, class is last column.
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */

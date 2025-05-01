@@ -1,5 +1,5 @@
 /*
- * LoadBodyfatAutomatic.java
+ * LoadIris.java
  * Copyright (C) 2025 University of Waikato, Hamilton, New Zealand
  */
 
@@ -10,18 +10,18 @@ import nz.ac.waikato.cms.adams.djl.dataset.ArffDataset;
 import java.nio.file.Path;
 
 /**
- * Loads the bodyfat ARFF file, automatically adding the features and label (class is last column).
+ * Loads the iris ARFF file, class is last column. The class is defined as STRING attribute, but treated as NOMINAL one.
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
-public class LoadBodyfatAutomatic {
+public class LoadIrisString {
 
   public static void main(String[] args) throws Exception {
     ArffDataset dataset = ArffDataset.builder()
-			    .optArffFile(Path.of("src/main/resources/bodyfat.arff"))
+			    .optArffFile(Path.of("src/main/resources/iris_string.arff"))
 			    .setSampling(32, true)
+			    .stringColumnsAsNominal()
 			    .classIsLast()
-			    .addAllFeatures()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.toInfo());

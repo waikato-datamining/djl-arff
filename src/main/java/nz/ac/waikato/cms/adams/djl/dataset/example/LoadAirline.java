@@ -10,7 +10,8 @@ import nz.ac.waikato.cms.adams.djl.dataset.ArffDataset;
 import java.nio.file.Path;
 
 /**
- * Just loads an ARFF dataset and outputs the data.
+ * Loads the airline ARFF file and treats DATE attributes as numeric ones.
+ * The class attribute is the first one.
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
@@ -20,7 +21,8 @@ public class LoadAirline {
     ArffDataset dataset = ArffDataset.builder()
 			    .optArffFile(Path.of("src/main/resources/airline.arff"))
 			    .setSampling(32, true)
-			    .classIndex(0)
+			    .dateColumnsAsNumeric()
+			    .classIsFirst()
 			    .addAllFeatures()
 			    .build();
     dataset.prepare();

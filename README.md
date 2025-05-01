@@ -6,8 +6,9 @@ Reading ARFF datasets using [Deep Java Library (DJL)](https://djl.ai/).
 
 * [Load airline dataset](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadAirline.java)
 * [Load bodyfat dataset (adding columns automatically)](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadBodyfatAutomatic.java)
-* [Load bodyfat dataset (explicit columns)](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadBodyfatExplicit.java)
+* [Load bodyfat dataset (explicitly adding columns)](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadBodyfatExplicit.java)
 * [Load iris dataset](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadIris.java)
+* [Load iris dataset (STRING class attribute)](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadIrisString.java)
 
 
 ## Maven

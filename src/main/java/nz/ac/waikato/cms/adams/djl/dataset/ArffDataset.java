@@ -27,8 +27,11 @@ import java.util.zip.GZIPInputStream;
 
 /**
  * {@code ArffDataset} represents the dataset that is stored in an .arff[.gz] file.
- * Only supports NUMERIC, NOMINAL, STRING and DATE attributes. DATE attributes get parsed
- * and the epoch time is stored as string, i.e., treated as NUMERIC attribute.
+ * Only supports NUMERIC, NOMINAL, STRING and DATE attributes.
+ * By default, DATE and STRING attributes get ignored.
+ * DATE attributes can be treated as NUMERIC ones: get parsed
+ * and the epoch time is stored as NUMERIC string.
+ * STRING attributes can be treated as NOMINAL ones.
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
@@ -201,17 +204,23 @@ public class ArffDataset extends TabularDataset {
 
     protected Set<String> matchingFeaturesAdded;
 
+    protected boolean stringColumnsAsNominal;
+
+    protected boolean dateColumnsAsNumeric;
+
     /**
      * Initializes the builder.
      */
     protected ArffBuilder() {
       super();
 
-      classAdded            = false;
-      classColumns          = new HashSet<>();
-      ignoredColumns        = new HashSet<>();
-      allFeaturesAdded      = false;
-      matchingFeaturesAdded = new HashSet<>();
+      classAdded             = false;
+      classColumns           = new HashSet<>();
+      ignoredColumns         = new HashSet<>();
+      allFeaturesAdded       = false;
+      matchingFeaturesAdded  = new HashSet<>();
+      stringColumnsAsNominal = false;
+      dateColumnsAsNumeric   = false;
     }
 
     /** {@inheritDoc} */
@@ -250,6 +259,26 @@ public class ArffDataset extends TabularDataset {
       } catch (MalformedURLException e) {
 	throw new IllegalArgumentException("Invalid url: " + arffUrl, e);
       }
+      return self();
+    }
+
+    /**
+     * Sets whether to treat DATE columns as NUMERIC ones.
+     *
+     * @return this builder
+     */
+    public T dateColumnsAsNumeric() {
+      dateColumnsAsNumeric = true;
+      return self();
+    }
+
+    /**
+     * Sets whether to treat STRING columns as NOMINAL ones.
+     *
+     * @return this builder
+     */
+    public T stringColumnsAsNominal() {
+      stringColumnsAsNominal = true;
       return self();
     }
 
@@ -319,6 +348,15 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
+     * Sets the flag that the class attribute is the first column.
+     *
+     * @return this builder
+     */
+    public T classIsFirst() {
+      return classIndex(0);
+    }
+
+    /**
      * Sets the flag that the class attribute is the last column.
      *
      * @return this builder
@@ -362,12 +400,18 @@ public class ArffDataset extends TabularDataset {
       if (isClassColumn(parser, index)) {
 	switch (colType) {
 	  case NUMERIC:
-	  case DATE:
 	    addNumericLabel(colName);
 	    break;
+	  case DATE:
+	    if (dateColumnsAsNumeric)
+	      addNumericLabel(colName);
+	    break;
 	  case NOMINAL:
-	  case STRING:
 	    addCategoricalLabel(colName);
+	    break;
+	  case STRING:
+	    if (stringColumnsAsNominal)
+	      addCategoricalLabel(colName);
 	    break;
 	  default:
 	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
@@ -376,12 +420,18 @@ public class ArffDataset extends TabularDataset {
       else {
 	switch (colType) {
 	  case NUMERIC:
-	  case DATE:
 	    addNumericFeature(colName);
 	    break;
+	  case DATE:
+	    if (dateColumnsAsNumeric)
+	      addNumericFeature(colName);
+	    break;
 	  case NOMINAL:
-	  case STRING:
 	    addCategoricalFeature(colName);
+	    break;
+	  case STRING:
+	    if (stringColumnsAsNominal)
+	      addCategoricalFeature(colName);
 	    break;
 	  default:
 	    throw new IllegalStateException("Unhandled class attribute type: " + colType);

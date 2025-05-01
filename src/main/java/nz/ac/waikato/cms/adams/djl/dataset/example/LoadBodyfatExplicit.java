@@ -10,7 +10,7 @@ import nz.ac.waikato.cms.adams.djl.dataset.ArffDataset;
 import java.nio.file.Path;
 
 /**
- * Just loads an ARFF dataset and outputs the data.
+ * Loads the bodyfat ARFF file, explicitly specifying features and label (last column).
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */

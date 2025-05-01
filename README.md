@@ -7,12 +7,13 @@ which columns are to be used as labels (i.e., class attributes/output variables)
 and which as features (i.e., input variables). It is also possible to
 specify columns to ignore.
 
-Works with DJL version 0.8.0 and later.
+Works with DJL version 0.21.0 and later.
 
 
 ## Usage
 
-Here is an example of how to load an ARFF dataset:
+Below is an example of how to load the UCI datatset iris, using the last column 
+as class attribute and only features that match `petal.*`:
 
 ```java
 import nz.ac.waikato.cms.adams.djl.dataset.ArffDataset;
@@ -41,8 +42,12 @@ Here is an overview of the available `ArffDataset.ArffBuilder` methods:
 * `optArffFile(Path)` - the file to the ARFF file to load
 * `optArffUrl(String)` - the URL of the ARFF file to load
 
+Either `optArffFile` or `optArffUrl` needs to be specified. 
+
 
 ## Examples
+
+Some example classes for loading ARFF files:
 
 * [Load airline dataset](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadAirline.java)
 * [Load bodyfat dataset (adding columns automatically)](src/main/java/nz/ac/waikato/cms/adams/djl/dataset/example/LoadBodyfatAutomatic.java)

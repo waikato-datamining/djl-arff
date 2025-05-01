@@ -50,12 +50,12 @@
     <dependency>
       <groupId>ai.djl</groupId>
       <artifactId>api</artifactId>
-      <version>[0.8.0,)</version>
+      <version>[0.21.0,)</version>
     </dependency>
     <dependency>
       <groupId>ai.djl</groupId>
       <artifactId>basicdataset</artifactId>
-      <version>[0.8.0,)</version>
+      <version>[0.21.0,)</version>
     </dependency>
   </dependencies>
 

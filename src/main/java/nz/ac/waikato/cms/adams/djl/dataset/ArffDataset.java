@@ -32,6 +32,7 @@ import java.util.zip.GZIPInputStream;
  * DATE attributes can be treated as NUMERIC ones: get parsed
  * and the epoch time is stored as NUMERIC string.
  * STRING attributes can be treated as NOMINAL ones.
+ * Ignored columns, explicit or via regexps, should be set first.
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
@@ -441,7 +442,6 @@ public class ArffDataset extends TabularDataset {
 
     /**
      * Adds the class attribute(s).
-     * Loads the ARFF file and parses the header.
      *
      * @param colNames the column(s) to use as class attribute(s)
      * @return this builder
@@ -494,8 +494,7 @@ public class ArffDataset extends TabularDataset {
     /**
      * Adds all features according to their types.
      * Skips ignored column names and class attribute(s).
-     * Column specified via class index/classIsLast gets added appropriately.
-     * Loads the ARFF file and parses the header.
+     * Only gets executed once.
      *
      * @return this builder
      */
@@ -521,7 +520,8 @@ public class ArffDataset extends TabularDataset {
 
     /**
      * Adds all feature columns which names match the regular expression.
-     * Skips class attributes.
+     * Skips ignored column names and class attribute(s).
+     * Only gets executed once.
      *
      * @param regexp the regular expression to apply
      * @return this builder

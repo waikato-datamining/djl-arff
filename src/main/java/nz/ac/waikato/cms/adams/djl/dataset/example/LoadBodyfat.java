@@ -40,12 +40,13 @@ public class LoadBodyfat {
     System.out.println(dataset.getRelationName());
     for (int i = 0; i < dataset.size(); i++) {
       for (int n = 0; n < dataset.getFeatureSize(); n++) {
-	String cell = dataset.getCell(i, dataset.getColumnNames().get(n));
+	String cell = dataset.getCell(i, dataset.getFeatures().get(n).getName());
 	if (n > 0)
 	  System.out.print(",");
 	System.out.print(cell);
       }
-      System.out.println();
+      String cell = dataset.getCell(i, dataset.getLabels().get(0).getName());
+      System.out.println("," + cell);
     }
   }
 }

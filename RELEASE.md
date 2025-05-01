@@ -2,10 +2,11 @@
 
 Switch to Java 11.
 
-Use the following command to make a new release:
+Use the following command to make a new release (`-DignoreSnapshots=true` 
+is necessary due to open range for DJL dependencies):
 
 ```
-mvn release:prepare release:perform
+mvn -DignoreSnapshots=true release:prepare release:perform
 ```
 
 After the release perform:

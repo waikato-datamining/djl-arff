@@ -1,5 +1,5 @@
 /*
- * LoadIris.java
+ * LoadBodyfatExplicit.java
  * Copyright (C) 2025 University of Waikato, Hamilton, New Zealand
  */
 
@@ -14,14 +14,27 @@ import java.nio.file.Path;
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
-public class LoadIris {
+public class LoadBodyfatExplicit {
 
   public static void main(String[] args) throws Exception {
     ArffDataset dataset = ArffDataset.builder()
-			    .optArffFile(Path.of("src/main/resources/iris.arff"))
+			    .optArffFile(Path.of("src/main/resources/bodyfat.arff"))
 			    .setSampling(32, true)
-			    .classIsLast()
-			    .addAllColumns()
+			    .addNumericFeature("Density")
+			    .addNumericFeature("Age")
+			    .addNumericFeature("Weight")
+			    .addNumericFeature("Height")
+			    .addNumericFeature("Neck")
+			    .addNumericFeature("Chest")
+			    .addNumericFeature("Abdomen")
+			    .addNumericFeature("Hip")
+			    .addNumericFeature("Thigh")
+			    .addNumericFeature("Knee")
+			    .addNumericFeature("Ankle")
+			    .addNumericFeature("Biceps")
+			    .addNumericFeature("Forearm")
+			    .addNumericFeature("Wrist")
+			    .addNumericLabel("class")
 			    .build();
     dataset.prepare();
     System.out.println(dataset.getRelationName());

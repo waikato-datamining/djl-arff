@@ -20,8 +20,8 @@ public class LoadAirline {
     ArffDataset dataset = ArffDataset.builder()
 			    .optArffFile(Path.of("src/main/resources/airline.arff"))
 			    .setSampling(32, true)
-			    .addNumericLabel("passenger_numbers")
-			    .addNumericFeature("Date")
+			    .classIndex(0)
+			    .addAllColumns()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.getRelationName());

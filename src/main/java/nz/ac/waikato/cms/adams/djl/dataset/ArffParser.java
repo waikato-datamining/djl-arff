@@ -22,6 +22,7 @@ import java.util.Map;
  */
 public class ArffParser {
 
+  protected boolean onlyHeader;
   protected String relationName;
   protected List<String> colNames;
   protected List<ArffAttributeType> colTypes;
@@ -42,12 +43,12 @@ public class ArffParser {
   }
 
   /**
-   * Performs the actual reading.
+   * Parses the dataset.
    *
    * @param r			the reader to read from
    * @throws IOException        if reading fails
    */
-  public void parse(Reader r) throws IOException {
+  protected void doParse(Reader r) throws IOException {
     BufferedReader reader;
     String			line;
     String			lower;
@@ -99,6 +100,8 @@ public class ArffParser {
 	  }
 	  else if (lower.startsWith(ArffKeywords.DATA)) {
 	    isHeader = false;
+	    if (onlyHeader)
+	      return;
 	  }
 	}
 	else {
@@ -137,6 +140,28 @@ public class ArffParser {
     catch (Exception e) {
       throw new IOException("Failed to read ARFF data from reader (line #" + (lineIndex +1) + ")!", e);
     }
+  }
+
+  /**
+   * Parses only the header.
+   *
+   * @param r			the reader to read from
+   * @throws IOException        if reading fails
+   */
+  public void parseHeader(Reader r) throws IOException {
+    onlyHeader = true;
+    doParse(r);
+  }
+
+  /**
+   * Parses the complete dataset.
+   *
+   * @param r			the reader to read from
+   * @throws IOException        if reading fails
+   */
+  public void parse(Reader r) throws IOException {
+    onlyHeader = false;
+    doParse(r);
   }
 
   /**

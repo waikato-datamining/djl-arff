@@ -1,5 +1,5 @@
 /*
- * LoadBodyfat.java
+ * LoadBodyfatAutomatic.java
  * Copyright (C) 2025 University of Waikato, Hamilton, New Zealand
  */
 
@@ -14,27 +14,14 @@ import java.nio.file.Path;
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
-public class LoadBodyfat {
+public class LoadBodyfatAutomatic {
 
   public static void main(String[] args) throws Exception {
     ArffDataset dataset = ArffDataset.builder()
 			    .optArffFile(Path.of("src/main/resources/bodyfat.arff"))
 			    .setSampling(32, true)
-			    .addNumericFeature("Density")
-			    .addNumericFeature("Age")
-			    .addNumericFeature("Weight")
-			    .addNumericFeature("Height")
-			    .addNumericFeature("Neck")
-			    .addNumericFeature("Chest")
-			    .addNumericFeature("Abdomen")
-			    .addNumericFeature("Hip")
-			    .addNumericFeature("Thigh")
-			    .addNumericFeature("Knee")
-			    .addNumericFeature("Ankle")
-			    .addNumericFeature("Biceps")
-			    .addNumericFeature("Forearm")
-			    .addNumericFeature("Wrist")
-			    .addNumericLabel("class")
+			    .classIsLast()
+			    .addAllColumns()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.getRelationName());

@@ -18,8 +18,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -69,11 +71,12 @@ public class ArffDataset extends TabularDataset {
     parser = new ArffParser();
     parser.parse(r);
 
-    data      = parser.getData();
-    header    = parser.getHeader();
-    colNames  = parser.getColNames();
-    colTypes  = parser.getColTypes();
-    attLookUp = parser.getAttLookUp();
+    relationName = parser.getRelationName();
+    data         = parser.getData();
+    header       = parser.getHeader();
+    colNames     = parser.getColNames();
+    colTypes     = parser.getColTypes();
+    attLookUp    = parser.getAttLookUp();
   }
 
   /** {@inheritDoc} */
@@ -150,6 +153,23 @@ public class ArffDataset extends TabularDataset {
 
     protected URL arffUrl;
 
+    protected int classIndex;
+
+    protected Boolean classIsLast;
+
+    protected Set<String> ignoredColumns;
+
+    protected ArffParser parser;
+
+    /**
+     * Initializes the builder.
+     */
+    protected ArffBuilder() {
+      super();
+      classIndex     = -1;
+      ignoredColumns = new HashSet<>();
+    }
+
     /** {@inheritDoc} */
     @Override
     @SuppressWarnings("unchecked")
@@ -164,6 +184,7 @@ public class ArffDataset extends TabularDataset {
      * @return this builder
      */
     public T optArffFile(Path arffFile) {
+      parser = null;
       try {
 	this.arffUrl = arffFile.toAbsolutePath().toUri().toURL();
       } catch (MalformedURLException e) {
@@ -179,11 +200,151 @@ public class ArffDataset extends TabularDataset {
      * @return this builder
      */
     public T optArffUrl(String arffUrl) {
+      parser = null;
       try {
 	this.arffUrl = new URL(arffUrl);
       } catch (MalformedURLException e) {
 	throw new IllegalArgumentException("Invalid url: " + arffUrl, e);
       }
+      return self();
+    }
+
+    /**
+     * Returns the parser instance. If necessary instantiates and parses the header.
+     *
+     * @return the parser, null if it can't be instantiated
+     */
+    protected ArffParser getParser() {
+      InputStream	is;
+      InputStreamReader	ir;
+
+      if (parser == null) {
+	if (arffUrl != null) {
+	  is = null;
+	  ir = null;
+	  try {
+	    if (arffUrl.getFile().endsWith(".gz"))
+	      is = new GZIPInputStream(arffUrl.openStream());
+	    else
+	      is = new BufferedInputStream(arffUrl.openStream());
+	    ir = new InputStreamReader(is, StandardCharsets.UTF_8);
+	    parser = new ArffParser();
+	    parser.parseHeader(ir);
+	  }
+	  catch (Exception e) {
+	    // ignored
+	  }
+	  if (ir != null) {
+	    try {
+	      ir.close();
+	    }
+	    catch (Exception e) {
+	      // ignored
+	    }
+	  }
+	  if (is != null) {
+	    try {
+	      is.close();
+	    }
+	    catch (Exception e) {
+	      // ignored
+	    }
+	  }
+	}
+      }
+      return parser;
+    }
+
+    /**
+     * Sets the index of the column to use as class attribute.
+     *
+     * @param index the 0-based index (based on column in ARFF file)
+     * @return this builder
+     */
+    public T classIndex(int index) {
+      if (index < -1)
+	index = -1;
+      classIndex = index;
+      return self();
+    }
+
+    /**
+     * Sets the flag that the class attribute is the last column.
+     *
+     * @return this builder
+     */
+    public T classIsLast() {
+      classIsLast = true;
+      return self();
+    }
+
+    /**
+     * Adds the column name to ignore when adding all features.
+     *
+     * @param name the name of the column to ignore
+     * @return this builder
+     */
+    public T addIgnoredColumn(String name) {
+      ignoredColumns.add(name);
+      return self();
+    }
+
+    /**
+     * Adds all features/labels according to their types.
+     * Skips ignored column names.
+     * Column specified via class index/classIsLast gets added appropriately.
+     * Loads the ARFF file and parses the header.
+     *
+     * @return this builder
+     */
+    public T addAllColumns() {
+      ArffParser	parser;
+      int 		actClassIndex;
+      int		i;
+
+      parser = getParser();
+
+      // actual class index
+      actClassIndex = classIndex;
+      if ((classIsLast != null) && classIsLast)
+	actClassIndex = parser.getColNames().size() - 1;
+      if (actClassIndex >= parser.getColNames().size())
+	throw new IllegalArgumentException("0-based class index out of range (#atts=" + parser.getColNames() + "): " + actClassIndex);
+
+      // add features
+      for (i = 0; i < parser.getColNames().size(); i++) {
+	if (ignoredColumns.contains(parser.getColNames().get(i)))
+	  continue;
+	if (i == actClassIndex) {
+	  switch (parser.getColTypes().get(i)) {
+	    case NUMERIC:
+	    case DATE:
+	      addNumericLabel(parser.getColNames().get(i));
+	      break;
+	    case NOMINAL:
+	    case STRING:
+	      addCategoricalLabel(parser.getColNames().get(i));
+	      break;
+	    default:
+	      throw new IllegalStateException("Unhandled class attribute type: " + parser.getColTypes().get(i));
+	  }
+	}
+	else {
+	  switch (parser.getColTypes().get(i)) {
+	    case NUMERIC:
+	    case DATE:
+	      addNumericFeature(parser.getColNames().get(i));
+	      break;
+	    case NOMINAL:
+	    case STRING:
+	      addCategoricalFeature(parser.getColNames().get(i));
+	      break;
+	    default:
+	      throw new IllegalStateException("Unhandled class attribute type: " + parser.getColTypes().get(i));
+	  }
+	}
+      }
+
       return self();
     }
 

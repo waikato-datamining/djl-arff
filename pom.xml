@@ -5,7 +5,7 @@
 
   <groupId>nz.ac.waikato.cms.adams</groupId>
   <artifactId>djl-arff</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.2-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>djl-arff</name>
@@ -38,7 +38,7 @@
     <connection>scm:git:ssh://git@github.com/waikato-datamining/djl-arff</connection>
     <developerConnection>scm:git:ssh://git@github.com/waikato-datamining/djl-arff</developerConnection>
     <url>https://github.com/waikato-datamining/djl-arff</url>
-    <tag>djl-arff-0.0.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <properties>

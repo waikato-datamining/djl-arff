@@ -9,7 +9,6 @@ import ai.djl.basicdataset.tabular.TabularDataset;
 import ai.djl.util.Progress;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,11 +17,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
@@ -36,26 +31,10 @@ import java.util.zip.GZIPInputStream;
  */
 public class ArffDataset extends TabularDataset {
 
-  public static final String KEYWORD_RELATION = "@relation";
-
-  public static final String KEYWORD_ATTRIBUTE = "@attribute";
-
-  public static final String KEYWORD_DATA = "@data";
-
-  /**
-   * Attribute types.
-   */
-  public enum AttributeType {
-    NUMERIC,
-    NOMINAL,
-    STRING,
-    DATE,
-  }
-
   protected URL arffUrl;
   protected String relationName;
   protected List<String> colNames;
-  protected List<AttributeType> colTypes;
+  protected List<ArffAttributeType> colTypes;
   protected List<List<String>> data;
   protected List<Map<String,String>> header;
   protected Map<String,Integer> attLookUp;
@@ -79,168 +58,22 @@ public class ArffDataset extends TabularDataset {
   }
 
   /**
-   * Extracts the attribute name, type and date format from the line.
-   *
-   * @param line	the line to parse
-   * @return		the extracted data
-   * @throws IOException	if parsing fails, e.g., invalid date format
-   */
-  protected HashMap<String,String> parseAttribute(String line) throws IOException {
-    HashMap<String,String>	result;
-    boolean			quoted;
-    String 			current;
-    String			lower;
-    String			format;
-
-    result  = new HashMap<>();
-    current = line.replace("\t", " ");
-    current = current.substring(KEYWORD_ATTRIBUTE.length() + 1).trim();
-
-    // name
-    if (current.startsWith("'")) {
-      quoted = true;
-      result.put("name", current.substring(1, current.indexOf('\'', 1)).trim());
-    }
-    else if (current.startsWith("\"")) {
-      quoted = true;
-      result.put("name", current.substring(1, current.indexOf('"', 1)).trim());
-    }
-    else {
-      quoted = false;
-      result.put("name", current.substring(0, current.indexOf(' ', 1)).trim());
-    }
-    current = current.substring(result.get("name").length() + (quoted ? 2 : 0)).trim();
-
-    // type
-    lower = current.toLowerCase();
-    if (lower.startsWith("numeric") || lower.startsWith("real") || lower.startsWith("integer"))
-      result.put("type", AttributeType.NUMERIC.toString());
-    else if (lower.startsWith("string"))
-      result.put("type", AttributeType.STRING.toString());
-    else if (lower.startsWith("date"))
-      result.put("type", AttributeType.DATE.toString());
-    else if (lower.startsWith("{"))
-      result.put("type", AttributeType.NOMINAL.toString());
-    else
-      throw new IllegalStateException("Unsupported attribute: " + current);
-
-    // date format
-    if (result.get("type").equals(AttributeType.DATE.toString())) {
-      current = current.substring(5).trim();   // remove "date "
-      if (current.startsWith("'"))
-	format = Utils.unquote(current);
-      else if (current.startsWith("\""))
-	format = Utils.unDoubleQuote(current);
-      else
-	format = current;
-      try {
-	new SimpleDateFormat(format);
-	result.put("format", format);
-      }
-      catch (Exception e) {
-	throw new IllegalStateException("Invalid date format: " + format);
-      }
-    }
-
-    return result;
-  }
-
-  /**
    * Performs the actual reading.
    *
    * @param r			the reader to read from
    * @throws IOException	if reading fails
    */
   protected void parseDataset(Reader r) throws IOException {
-    BufferedReader 		reader;
-    String			line;
-    String			lower;
-    boolean 			isHeader;
-    int 			lineIndex;
-    String[]			cells;
-    int				i;
-    Map<String,String>		attInfo;
-    List<String>		row;
-    Map<Integer, DateFormat>	formats;
+    ArffParser	parser;
 
-    data      = new ArrayList<>();
-    header    = new ArrayList<>();
-    colNames  = new ArrayList<>();
-    colTypes  = new ArrayList<>();
-    attLookUp = new HashMap<>();
-    formats   = new HashMap<>();
+    parser = new ArffParser();
+    parser.parse(r);
 
-    if (r instanceof BufferedReader)
-      reader = (BufferedReader) r;
-    else
-      reader = new BufferedReader(r);
-
-    lineIndex = 0;
-    isHeader  = true;
-    try {
-      while ((line = reader.readLine()) != null) {
-	lineIndex++;
-
-	line = line.trim();
-	if (line.isEmpty())
-	  continue;
-	if (line.startsWith("%"))
-	  continue;
-
-	if (isHeader) {
-	  lower = line.toLowerCase();
-	  if (lower.startsWith(KEYWORD_RELATION)) {
-	    relationName = Utils.unquote(line.substring(KEYWORD_RELATION.length()).trim());
-	  }
-	  else if (lower.startsWith(KEYWORD_ATTRIBUTE)) {
-	    attInfo = parseAttribute(line);
-	    colNames.add(attInfo.get("name"));
-	    colTypes.add(AttributeType.valueOf(attInfo.get("type")));
-	    attLookUp.put(attInfo.get("name"), attLookUp.size());
-	    if (colTypes.get(colTypes.size() - 1) == AttributeType.DATE)
-	      formats.put(colTypes.size() - 1, new SimpleDateFormat(attInfo.get("format")));
-	    header.add(attInfo);
-	  }
-	  else if (lower.startsWith(KEYWORD_DATA)) {
-	    isHeader = false;
-	  }
-	}
-	else {
-	  row = new ArrayList<>();
-	  data.add(row);
-	  cells = Utils.split(line, ',', false, '\'', true);
-	  for (i = 0; i < cells.length && i < header.size(); i++) {
-	    cells[i] = cells[i].trim();
-	    if (cells[i].equals("?")) {
-	      row.add(null);
-	      continue;
-	    }
-	    cells[i] = Utils.unquote(cells[i]);
-	    switch (colTypes.get(i)) {
-	      case NUMERIC:
-		Double.parseDouble(cells[i]);
-		row.add(cells[i]);
-		break;
-	      case NOMINAL:
-	      case STRING:
-		row.add(cells[i]);
-		break;
-	      case DATE:
-		row.add("" + formats.get(i).parse(cells[i]).getTime());
-		break;
-	      default:
-		throw new IOException("Unhandled attribute type: " + colTypes.get(i));
-	    }
-	  }
-	}
-      }
-    }
-    catch (IOException ioe) {
-      throw ioe;
-    }
-    catch (Exception e) {
-      throw new IOException("Failed to read ARFF data from reader (line #" + (lineIndex +1) + ")!", e);
-    }
+    data      = parser.getData();
+    header    = parser.getHeader();
+    colNames  = parser.getColNames();
+    colTypes  = parser.getColTypes();
+    attLookUp = parser.getAttLookUp();
   }
 
   /** {@inheritDoc} */
@@ -253,10 +86,10 @@ public class ArffDataset extends TabularDataset {
   }
 
   private InputStream getArffStream() throws IOException {
-    if (arffUrl.getFile().endsWith(".gz")) {
+    if (arffUrl.getFile().endsWith(".gz"))
       return new GZIPInputStream(arffUrl.openStream());
-    }
-    return new BufferedInputStream(arffUrl.openStream());
+    else
+      return new BufferedInputStream(arffUrl.openStream());
   }
 
   /**
@@ -295,7 +128,7 @@ public class ArffDataset extends TabularDataset {
    * @param name the name of the column to get the type for
    * @return the type, null if no dataset info available
    */
-  public AttributeType getColumnType(String name) {
+  public ArffAttributeType getColumnType(String name) {
     if ((header == null) || header.isEmpty())
       return null;
     return colTypes.get(attLookUp.get(name));

@@ -1,11 +1,14 @@
 /*
- * Utils.java
+ * ArffUtils.java
  * Copyright (C) 2025 University of Waikato, Hamilton, New Zealand
  */
 
 package nz.ac.waikato.cms.adams.djl.dataset;
 
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -13,7 +16,7 @@ import java.util.List;
  *
  * @author fracpete (fracpete at waikato dot ac dot nz)
  */
-public class Utils {
+public class ArffUtils {
 
   /**
    * unquotes are previously quoted string (but only if necessary), i.e., it
@@ -203,5 +206,72 @@ public class Utils {
     }
 
     return result.toArray(new String[0]);
+  }
+
+  /**
+   * Extracts the attribute name, type and date format from the line.
+   *
+   * @param line	the line to parse
+   * @return		the extracted data
+   * @throws IOException        if parsing fails, e.g., invalid date format
+   */
+  public static HashMap<String,String> parseAttribute(String line) throws IOException {
+    HashMap<String,String>	result;
+    boolean			quoted;
+    String 			current;
+    String			lower;
+    String			format;
+
+    result  = new HashMap<>();
+    current = line.replace("\t", " ");
+    current = current.substring(ArffKeywords.ATTRIBUTE.length() + 1).trim();
+
+    // name
+    if (current.startsWith("'")) {
+      quoted = true;
+      result.put("name", current.substring(1, current.indexOf('\'', 1)).trim());
+    }
+    else if (current.startsWith("\"")) {
+      quoted = true;
+      result.put("name", current.substring(1, current.indexOf('"', 1)).trim());
+    }
+    else {
+      quoted = false;
+      result.put("name", current.substring(0, current.indexOf(' ', 1)).trim());
+    }
+    current = current.substring(result.get("name").length() + (quoted ? 2 : 0)).trim();
+
+    // type
+    lower = current.toLowerCase();
+    if (lower.startsWith("numeric") || lower.startsWith("real") || lower.startsWith("integer"))
+      result.put("type", ArffAttributeType.NUMERIC.toString());
+    else if (lower.startsWith("string"))
+      result.put("type", ArffAttributeType.STRING.toString());
+    else if (lower.startsWith("date"))
+      result.put("type", ArffAttributeType.DATE.toString());
+    else if (lower.startsWith("{"))
+      result.put("type", ArffAttributeType.NOMINAL.toString());
+    else
+      throw new IllegalStateException("Unsupported attribute: " + current);
+
+    // date format
+    if (result.get("type").equals(ArffAttributeType.DATE.toString())) {
+      current = current.substring(5).trim();   // remove "date "
+      if (current.startsWith("'"))
+	format = ArffUtils.unquote(current);
+      else if (current.startsWith("\""))
+	format = ArffUtils.unDoubleQuote(current);
+      else
+	format = current;
+      try {
+	new SimpleDateFormat(format);
+	result.put("format", format);
+      }
+      catch (Exception e) {
+	throw new IllegalStateException("Invalid date format: " + format);
+      }
+    }
+
+    return result;
   }
 }

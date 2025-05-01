@@ -1,6 +1,46 @@
 # djl-arff
 Reading ARFF datasets using [Deep Java Library (DJL)](https://djl.ai/).
 
+Rather than explicitly defining all the features and labels manually, 
+the dataset builder a number of methods that simplify specifying
+which columns are to be used as labels (i.e., class attributes/output variables) 
+and which as features (i.e., input variables). It is also possible to
+specify columns to ignore.
+
+Works with DJL version 0.8.0 and later.
+
+
+## Usage
+
+Here is an example of how to load an ARFF dataset:
+
+```java
+import nz.ac.waikato.cms.adams.djl.dataset.ArffDataset;
+import java.nio.file.Path;
+
+ArffDataset dataset = ArffDataset.builder()
+            .optArffFile(Path.of("src/main/resources/iris.arff"))
+            .setSampling(32, true)
+            .classIsLast()
+            .addMatchingFeatures("petal.*")
+            .build();
+```
+
+Here is an overview of the available `ArffDataset.ArffBuilder` methods:
+
+* `dateColumnsAsNumeric()` - treat `DATE` attributes as `NUMERIC` instead of ignoring them
+* `stringColumnsAsNominal()` - treat `STRING` attributes as `NOMINAL` instead of ignoring them
+* `classIndex(int...)` - sets the 0-based index/indices of the column(s) to use as class attribute(s)  
+* `classIsFirst()` - uses the first column as class attribute
+* `classIsLast()` - uses the last column as class attribute
+* `addClassColumn(String...)` - adds the specified column(s) as class attribute(s)
+* `addIgnoredColumn(String...)` - specifies column(s) to be ignored
+* `ignoreMatchingColumns(String...)` - ignores columns that match the regexp(s)
+* `addAllFeatures()` - adds all columns as features that are neither ignored nor class attributes
+* `addMatchingFeatures(String...)` - adds all columns that match the regexp(s) that are neither ignored nor class attributes
+* `optArffFile(Path)` - the file to the ARFF file to load
+* `optArffUrl(String)` - the URL of the ARFF file to load
+
 
 ## Examples
 

@@ -18,6 +18,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -330,21 +331,23 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
-     * Sets the index of the column to use as class attribute.
+     * Sets the index/indices of the column(s) to use as class attribute.
      *
-     * @param index the 0-based index (based on column in ARFF file)
+     * @param index the 0-based index/indices (based on column in ARFF file)
      * @return this builder
      */
-    public T classIndex(int index) {
+    public T classIndex(int... index) {
       ArffParser	parser;
 
-      if (index < -1)
-	index = -1;
-      if (index == -1)
-	return self();
+      for (int i: index) {
+	if (i < -1)
+	  i = -1;
+	if (i == -1)
+	  continue;
 
-      parser = getParser();
-      addClassColumn(parser.getColNames().get(index));
+	parser = getParser();
+	addClassColumn(parser.getColNames().get(i));
+      }
       return self();
     }
 
@@ -463,29 +466,31 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
-     * Adds the column name to ignore when adding all features.
+     * Adds the column name(s) to ignore when adding all features.
      *
-     * @param name the name of the column to ignore
+     * @param colNames the name(s) of the column(s) to ignore
      * @return this builder
      */
-    public T addIgnoredColumn(String name) {
-      ignoredColumns.add(name);
+    public T addIgnoredColumn(String... colNames) {
+      ignoredColumns.addAll(Arrays.asList(colNames));
       return self();
     }
 
     /**
-     * Ignores all column names that match the regexp.
+     * Ignores all column names that match the regexp(s).
      *
-     * @param regexp 	the regular expression to use
+     * @param regexp 	the regular expression(s) to use
      * @return 		this builder
      */
-    public T ignoreMatchingColumns(String regexp) {
+    public T ignoreMatchingColumns(String... regexp) {
       ArffParser	parser;
 
       parser = getParser();
-      for (String colName: parser.getColNames()) {
-	if (colName.matches(regexp))
-	  addIgnoredColumn(colName);
+      for (String r: regexp) {
+	for (String colName : parser.getColNames()) {
+	  if (colName.matches(r))
+	    addIgnoredColumn(colName);
+	}
       }
 
       return self();
@@ -519,27 +524,29 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
-     * Adds all feature columns which names match the regular expression.
+     * Adds all feature columns which names match the regular expression(s).
      * Skips ignored column names and class attribute(s).
-     * Only gets executed once.
+     * Only gets executed once per regular expression.
      *
-     * @param regexp the regular expression to apply
+     * @param regexp the regular expression(s) to apply
      * @return this builder
      */
-    public T addMatchingFeatures(String regexp) {
+    public T addMatchingFeatures(String... regexp) {
       int	i;
 
-      if (matchingFeaturesAdded.contains(regexp))
-	return self();
-
-      matchingFeaturesAdded.add(regexp);
-      parser = getParser();
-
-      for (i = 0; i < parser.getColNames().size(); i++) {
-	if (isClassColumn(parser, i))
+      for (String r: regexp) {
+	if (matchingFeaturesAdded.contains(r))
 	  continue;
-	if (parser.getColNames().get(i).matches(regexp))
-	  addColumn(parser, i);
+
+	matchingFeaturesAdded.add(r);
+	parser = getParser();
+
+	for (i = 0; i < parser.getColNames().size(); i++) {
+	  if (isClassColumn(parser, i))
+	    continue;
+	  if (parser.getColNames().get(i).matches(r))
+	    addColumn(parser, i);
+	}
       }
 
       return self();

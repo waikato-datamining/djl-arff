@@ -1,5 +1,5 @@
 /*
- * Loadiris.java
+ * LoadIris.java
  * Copyright (C) 2025 University of Waikato, Hamilton, New Zealand
  */
 

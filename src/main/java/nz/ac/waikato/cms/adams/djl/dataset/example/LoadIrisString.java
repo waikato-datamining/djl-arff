@@ -22,6 +22,7 @@ public class LoadIrisString {
 			    .setSampling(32, true)
 			    .stringColumnsAsNominal()
 			    .classIsLast()
+			    .addAllFeatures()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.toInfo());

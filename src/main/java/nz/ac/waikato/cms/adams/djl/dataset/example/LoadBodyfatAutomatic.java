@@ -21,7 +21,8 @@ public class LoadBodyfatAutomatic {
 			    .optArffFile(Path.of("src/main/resources/bodyfat.arff"))
 			    .setSampling(32, true)
 			    .classIsLast()
-			    .addAllColumns()
+			    .addAllFeatures()
+			    .addClassColumn()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.getRelationName());

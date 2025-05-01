@@ -155,19 +155,35 @@ public class ArffDataset extends TabularDataset {
 
     protected int classIndex;
 
+    protected Integer actualClassIndex;
+
     protected Boolean classIsLast;
+
+    protected Set<String> classColumns;
 
     protected Set<String> ignoredColumns;
 
     protected ArffParser parser;
+
+    protected boolean classAdded;
+
+    protected boolean allFeaturesAdded;
+
+    protected Set<String> matchingFeaturesAdded;
 
     /**
      * Initializes the builder.
      */
     protected ArffBuilder() {
       super();
-      classIndex     = -1;
-      ignoredColumns = new HashSet<>();
+
+      classIndex              = -1;
+      actualClassIndex        = null;
+      classAdded              = false;
+      classColumns            = new HashSet<>();
+      ignoredColumns          = new HashSet<>();
+      allFeaturesAdded = false;
+      matchingFeaturesAdded = new HashSet<>();
     }
 
     /** {@inheritDoc} */
@@ -279,6 +295,133 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
+     * Returns the actual class index.
+     *
+     * @return the index, -1 if no class attribute
+     */
+    protected int actualClassIndex() {
+      int	index;
+
+      if (actualClassIndex == null) {
+	parser = getParser();
+	index  = classIndex;
+	if ((classIsLast != null) && classIsLast)
+	  index = parser.getColNames().size() - 1;
+	if (index >= parser.getColNames().size())
+	  throw new IllegalArgumentException("0-based class index out of range (#atts=" + parser.getColNames() + "): " + index);
+	actualClassIndex = index;
+      }
+
+      return actualClassIndex;
+    }
+
+    /**
+     * Checks if the specified column is a class attribute.
+     *
+     * @param parser the parser to use
+     * @param index the column index in the dataset
+     * @return true if class column
+     */
+    protected boolean isClassColumn(ArffParser parser, int index) {
+      return (classColumns.contains(parser.getColNames().get(index)))
+	       || (index == actualClassIndex());
+    }
+
+    /**
+     * Adds the column as feature or label.
+     * Skips ignored columns.
+     *
+     * @param parser		the parser to use
+     * @param index		the index of the column to add
+     */
+    protected void addColumn(ArffParser parser, int index) {
+      ArffAttributeType	colType;
+      String		colName;
+
+      colName = parser.getColNames().get(index);
+      colType = parser.getColTypes().get(index);
+
+      if (ignoredColumns.contains(colName))
+	return;
+
+      if (isClassColumn(parser, index)) {
+	switch (colType) {
+	  case NUMERIC:
+	  case DATE:
+	    addNumericLabel(colName);
+	    break;
+	  case NOMINAL:
+	  case STRING:
+	    addCategoricalLabel(colName);
+	    break;
+	  default:
+	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
+	}
+      }
+      else {
+	switch (colType) {
+	  case NUMERIC:
+	  case DATE:
+	    addNumericFeature(colName);
+	    break;
+	  case NOMINAL:
+	  case STRING:
+	    addCategoricalFeature(colName);
+	    break;
+	  default:
+	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
+	}
+      }
+    }
+
+    /**
+     * Adds the class attribute, if defined.
+     * Loads the ARFF file and parses the header.
+     *
+     * @return this builder
+     * @see #classIsLast()
+     * @see #classIndex(int)
+     */
+    public T addClassColumn() {
+      ArffParser	parser;
+      int 		actClassIndex;
+
+      if (classAdded)
+	return self();
+
+      classAdded      = true;
+      parser          = getParser();
+      actClassIndex   = actualClassIndex();
+      if (actClassIndex > -1)
+	addColumn(parser, actClassIndex);
+
+      return self();
+    }
+
+    /**
+     * Adds the class attribute, if defined.
+     * Loads the ARFF file and parses the header.
+     *
+     * @param colNames the column(s) to declare as class attribute(s)
+     * @return this builder
+     */
+    public T addClassColumns(String... colNames) {
+      ArffParser	parser;
+      int		index;
+
+      parser = getParser();
+      for (String colName: colNames) {
+	if (classColumns.contains(colName))
+	  continue;
+	classColumns.add(colName);
+	index = parser.getAttLookUp().get(colName);
+	addColumn(parser, index);
+      }
+
+      return self();
+    }
+
+    /**
      * Adds the column name to ignore when adding all features.
      *
      * @param name the name of the column to ignore
@@ -290,59 +433,72 @@ public class ArffDataset extends TabularDataset {
     }
 
     /**
-     * Adds all features/labels according to their types.
-     * Skips ignored column names.
+     * Ignores all column names that match the regexp.
+     *
+     * @param regexp 	the regular expression to use
+     * @return 		this builder
+     */
+    public T ignoreMatchingColumns(String regexp) {
+      ArffParser	parser;
+
+      parser = getParser();
+      for (String colName: parser.getColNames()) {
+	if (colName.matches(regexp))
+	  addIgnoredColumn(colName);
+      }
+
+      return self();
+    }
+
+    /**
+     * Adds all features according to their types.
+     * Skips ignored column names and class attribute(s).
      * Column specified via class index/classIsLast gets added appropriately.
      * Loads the ARFF file and parses the header.
      *
      * @return this builder
      */
-    public T addAllColumns() {
+    public T addAllFeatures() {
       ArffParser	parser;
-      int 		actClassIndex;
       int		i;
 
+      if (allFeaturesAdded)
+	return self();
+
+      allFeaturesAdded = true;
+      parser           = getParser();
+
+      // add all columns
+      for (i = 0; i < parser.getColNames().size(); i++) {
+	if (isClassColumn(parser, i))
+	  continue;
+	addColumn(parser, i);
+      }
+
+      return self();
+    }
+
+    /**
+     * Adds all feature columns which names match the regular expression.
+     * Skips class attributes.
+     *
+     * @param regexp the regular expression to apply
+     * @return this builder
+     */
+    public T addMatchingFeatures(String regexp) {
+      int	i;
+
+      if (matchingFeaturesAdded.contains(regexp))
+	return self();
+
+      matchingFeaturesAdded.add(regexp);
       parser = getParser();
 
-      // actual class index
-      actClassIndex = classIndex;
-      if ((classIsLast != null) && classIsLast)
-	actClassIndex = parser.getColNames().size() - 1;
-      if (actClassIndex >= parser.getColNames().size())
-	throw new IllegalArgumentException("0-based class index out of range (#atts=" + parser.getColNames() + "): " + actClassIndex);
-
-      // add features
       for (i = 0; i < parser.getColNames().size(); i++) {
-	if (ignoredColumns.contains(parser.getColNames().get(i)))
+	if (isClassColumn(parser, i))
 	  continue;
-	if (i == actClassIndex) {
-	  switch (parser.getColTypes().get(i)) {
-	    case NUMERIC:
-	    case DATE:
-	      addNumericLabel(parser.getColNames().get(i));
-	      break;
-	    case NOMINAL:
-	    case STRING:
-	      addCategoricalLabel(parser.getColNames().get(i));
-	      break;
-	    default:
-	      throw new IllegalStateException("Unhandled class attribute type: " + parser.getColTypes().get(i));
-	  }
-	}
-	else {
-	  switch (parser.getColTypes().get(i)) {
-	    case NUMERIC:
-	    case DATE:
-	      addNumericFeature(parser.getColNames().get(i));
-	      break;
-	    case NOMINAL:
-	    case STRING:
-	      addCategoricalFeature(parser.getColNames().get(i));
-	      break;
-	    default:
-	      throw new IllegalStateException("Unhandled class attribute type: " + parser.getColTypes().get(i));
-	  }
-	}
+	if (parser.getColNames().get(i).matches(regexp))
+	  addColumn(parser, i);
       }
 
       return self();

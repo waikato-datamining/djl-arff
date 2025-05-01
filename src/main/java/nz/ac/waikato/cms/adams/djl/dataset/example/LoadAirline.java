@@ -21,7 +21,8 @@ public class LoadAirline {
 			    .optArffFile(Path.of("src/main/resources/airline.arff"))
 			    .setSampling(32, true)
 			    .classIndex(0)
-			    .addAllColumns()
+			    .addAllFeatures()
+			    .addClassColumn()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.getRelationName());

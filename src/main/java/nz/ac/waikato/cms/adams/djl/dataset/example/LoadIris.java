@@ -21,7 +21,8 @@ public class LoadIris {
 			    .optArffFile(Path.of("src/main/resources/iris.arff"))
 			    .setSampling(32, true)
 			    .classIsLast()
-			    .addAllColumns()
+			    .addMatchingFeatures("petal.*")
+			    .addClassColumn()
 			    .build();
     dataset.prepare();
     System.out.println(dataset.getRelationName());

@@ -259,8 +259,8 @@ public class ArffDataset extends TabularDataset {
       dateColumnsAsNumeric   = false;
       structure              = new JsonObject();
       structure.add("options", new JsonObject());
-      structure.get("options").getAsJsonObject().addProperty("dateColumnsAsNumeric", true);
-      structure.get("options").getAsJsonObject().addProperty("stringColumnsAsNominal", true);
+      structure.get("options").getAsJsonObject().addProperty("dateColumnsAsNumeric", false);
+      structure.get("options").getAsJsonObject().addProperty("stringColumnsAsNominal", false);
       structure.add("features", new JsonArray());
       structure.add("labels", new JsonArray());
     }

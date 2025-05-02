@@ -41,6 +41,7 @@ Here is an overview of the available `ArffDataset.ArffBuilder` methods:
 * `addMatchingFeatures(String...)` - adds all columns that match the regexp(s) that are neither ignored nor class attributes
 * `optArffFile(Path)` - the file to the ARFF file to load
 * `optArffUrl(String)` - the URL of the ARFF file to load
+* `fromJson` - can instantiate the builder from the JSON settings (as provided by `ArffDataset.toJson`)
 
 Either `optArffFile` or `optArffUrl` needs to be specified. 
 

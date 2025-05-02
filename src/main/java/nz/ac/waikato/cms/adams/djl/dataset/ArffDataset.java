@@ -8,12 +8,20 @@ package nz.ac.waikato.cms.adams.djl.dataset;
 import ai.djl.basicdataset.tabular.TabularDataset;
 import ai.djl.basicdataset.tabular.utils.Feature;
 import ai.djl.util.Progress;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -46,10 +54,12 @@ public class ArffDataset extends TabularDataset {
   protected List<List<String>> data;
   protected List<Map<String,String>> header;
   protected Map<String,Integer> attLookUp;
+  protected JsonObject structure;
 
   protected ArffDataset(ArffBuilder<?> builder) {
     super(builder);
     arffUrl = builder.arffUrl;
+    structure = builder.toJson();
   }
 
   /** {@inheritDoc} */
@@ -188,6 +198,28 @@ public class ArffDataset extends TabularDataset {
     return result.toString();
   }
 
+  /**
+   * Returns the feature/labels as json.
+   *
+   * @return the generated json
+   */
+  public JsonObject toJson() {
+    return structure;
+  }
+
+  /**
+   * Writes the features/labels JSON representation to the specified path.
+   *
+   * @param filename		the file to write the representation to
+   * @throws IOException	if writing fails
+   */
+  public void toJson(Path filename) throws IOException {
+    try (FileWriter fw = new FileWriter(filename.toFile());
+	 BufferedWriter bw = new BufferedWriter(fw)) {
+      bw.write(toJson().toString());
+    }
+  }
+
   /** Used to build a {@link ArffDataset}. */
   public static class ArffBuilder<T extends ArffDataset.ArffBuilder<T>>
     extends TabularDataset.BaseBuilder<T> {
@@ -210,6 +242,8 @@ public class ArffDataset extends TabularDataset {
 
     protected boolean dateColumnsAsNumeric;
 
+    protected JsonObject structure;
+
     /**
      * Initializes the builder.
      */
@@ -223,6 +257,12 @@ public class ArffDataset extends TabularDataset {
       matchingFeaturesAdded  = new HashSet<>();
       stringColumnsAsNominal = false;
       dateColumnsAsNumeric   = false;
+      structure              = new JsonObject();
+      structure.add("options", new JsonObject());
+      structure.get("options").getAsJsonObject().addProperty("dateColumnsAsNumeric", true);
+      structure.get("options").getAsJsonObject().addProperty("stringColumnsAsNominal", true);
+      structure.add("features", new JsonArray());
+      structure.add("labels", new JsonArray());
     }
 
     /** {@inheritDoc} */
@@ -242,6 +282,7 @@ public class ArffDataset extends TabularDataset {
       parser = null;
       try {
 	this.arffUrl = arffFile.toAbsolutePath().toUri().toURL();
+	structure.addProperty("arffUrl", arffUrl.toString());
       } catch (MalformedURLException e) {
 	throw new IllegalArgumentException("Invalid file path: " + arffFile, e);
       }
@@ -258,6 +299,7 @@ public class ArffDataset extends TabularDataset {
       parser = null;
       try {
 	this.arffUrl = new URL(arffUrl);
+	structure.addProperty("arffUrl", arffUrl);
       } catch (MalformedURLException e) {
 	throw new IllegalArgumentException("Invalid url: " + arffUrl, e);
       }
@@ -271,6 +313,7 @@ public class ArffDataset extends TabularDataset {
      */
     public T dateColumnsAsNumeric() {
       dateColumnsAsNumeric = true;
+      structure.get("options").getAsJsonObject().addProperty("dateColumnsAsNumeric", true);
       return self();
     }
 
@@ -281,6 +324,7 @@ public class ArffDataset extends TabularDataset {
      */
     public T stringColumnsAsNominal() {
       stringColumnsAsNominal = true;
+      structure.get("options").getAsJsonObject().addProperty("stringColumnsAsNominal", true);
       return self();
     }
 
@@ -388,6 +432,78 @@ public class ArffDataset extends TabularDataset {
      * Adds the column as feature or label.
      * Skips ignored columns.
      *
+     * @param colName 		the name of the column
+     * @param colType 		the type of the column
+     * @param isClassColumn 	whether the column is a class attribute
+     */
+    protected void addColumn(String colName, ArffAttributeType colType, boolean isClassColumn) {
+      JsonObject	att;
+
+      if (ignoredColumns.contains(colName))
+	return;
+
+      att = new JsonObject();
+      att.addProperty("name", colName);
+      att.addProperty("type", colType.toString());
+
+      if (isClassColumn) {
+	switch (colType) {
+	  case NUMERIC:
+	    addNumericLabel(colName);
+	    structure.get("labels").getAsJsonArray().add(att);
+	    break;
+	  case DATE:
+	    if (dateColumnsAsNumeric) {
+	      addNumericLabel(colName);
+	      structure.get("labels").getAsJsonArray().add(att);
+	    }
+	    break;
+	  case NOMINAL:
+	    addCategoricalLabel(colName);
+	    structure.get("labels").getAsJsonArray().add(att);
+	    break;
+	  case STRING:
+	    if (stringColumnsAsNominal) {
+	      addCategoricalLabel(colName);
+	      structure.get("labels").getAsJsonArray().add(att);
+	    }
+	    break;
+	  default:
+	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
+	}
+      }
+      else {
+	switch (colType) {
+	  case NUMERIC:
+	    addNumericFeature(colName);
+	    structure.get("features").getAsJsonArray().add(att);
+	    break;
+	  case DATE:
+	    if (dateColumnsAsNumeric) {
+	      addNumericFeature(colName);
+	      structure.get("features").getAsJsonArray().add(att);
+	    }
+	    break;
+	  case NOMINAL:
+	    addCategoricalFeature(colName);
+	    structure.get("features").getAsJsonArray().add(att);
+	    break;
+	  case STRING:
+	    if (stringColumnsAsNominal) {
+	      addCategoricalFeature(colName);
+	      structure.get("features").getAsJsonArray().add(att);
+	    }
+	    break;
+	  default:
+	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
+	}
+      }
+    }
+
+    /**
+     * Adds the column as feature or label.
+     * Skips ignored columns.
+     *
      * @param parser		the parser to use
      * @param index		the index of the column to add
      */
@@ -398,49 +514,7 @@ public class ArffDataset extends TabularDataset {
       colName = parser.getColNames().get(index);
       colType = parser.getColTypes().get(index);
 
-      if (ignoredColumns.contains(colName))
-	return;
-
-      if (isClassColumn(parser, index)) {
-	switch (colType) {
-	  case NUMERIC:
-	    addNumericLabel(colName);
-	    break;
-	  case DATE:
-	    if (dateColumnsAsNumeric)
-	      addNumericLabel(colName);
-	    break;
-	  case NOMINAL:
-	    addCategoricalLabel(colName);
-	    break;
-	  case STRING:
-	    if (stringColumnsAsNominal)
-	      addCategoricalLabel(colName);
-	    break;
-	  default:
-	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
-	}
-      }
-      else {
-	switch (colType) {
-	  case NUMERIC:
-	    addNumericFeature(colName);
-	    break;
-	  case DATE:
-	    if (dateColumnsAsNumeric)
-	      addNumericFeature(colName);
-	    break;
-	  case NOMINAL:
-	    addCategoricalFeature(colName);
-	    break;
-	  case STRING:
-	    if (stringColumnsAsNominal)
-	      addCategoricalFeature(colName);
-	    break;
-	  default:
-	    throw new IllegalStateException("Unhandled class attribute type: " + colType);
-	}
-      }
+      addColumn(colName, colType, isClassColumn(parser, index));
     }
 
     /**
@@ -559,6 +633,98 @@ public class ArffDataset extends TabularDataset {
      */
     public ArffDataset build() {
       return new ArffDataset(this);
+    }
+
+    /**
+     * Returns the structure of the dataset as JSON.
+     *
+     * @return		the structure
+     */
+    public JsonObject toJson() {
+      return structure;
+    }
+
+    /**
+     * Configures the builder based on the structure.
+     *
+     * @param path the path to the dataset structure JSON file to load and apply
+     * @return this builder
+     * @see #fromJson(JsonObject)
+     */
+    public T fromJson(Path path) throws IOException {
+      JsonObject 	j;
+
+      try (Reader r = new FileReader(path.toFile()); BufferedReader br = new BufferedReader(r)) {
+	j = (JsonObject) JsonParser.parseReader(br);
+	return fromJson(j);
+      }
+    }
+
+    /**
+     * Configures the builder based on the structure.
+     *
+     * @param json the JSON string to load the dataset structure from and apply
+     * @return this builder
+     * @see #fromJson(JsonObject)
+     */
+    public T fromJson(String json) throws IOException {
+      JsonObject 	j;
+
+      try (Reader r = new StringReader(json); BufferedReader br = new BufferedReader(r)) {
+	j = (JsonObject) JsonParser.parseReader(br);
+	return fromJson(j);
+      }
+    }
+
+    /**
+     * Configures the builder based on the structure.
+     *
+     * @param structure	the dataset structure to use
+     * @return this builder
+     * @see #toJson()
+     */
+    public T fromJson(JsonObject structure) {
+      JsonObject	options;
+      JsonArray		features;
+      JsonArray		labels;
+      JsonObject	feature;
+      ArffAttributeType	type;
+      int		i;
+
+      // options
+      if (structure.has("options")) {
+	options = structure.getAsJsonObject("options");
+	if (options.has("dateColumnsAsNumeric") && options.get("dateColumnsAsNumeric").getAsBoolean())
+	  dateColumnsAsNumeric();
+	if (options.has("stringColumnsAsNominal") && options.get("stringColumnsAsNominal").getAsBoolean())
+	  stringColumnsAsNominal();
+      }
+
+      // features
+      if (structure.has("features")) {
+	features = structure.getAsJsonArray("features");
+	for (i = 0; i < features.size(); i++) {
+	  feature = features.get(i).getAsJsonObject();
+	  type    = ArffAttributeType.valueOf(feature.get("type").getAsString());
+	  addColumn(feature.get("name").getAsString(), type, false);
+	}
+      }
+
+      // labels
+      if (structure.has("labels")) {
+	labels = structure.getAsJsonArray("labels");
+	for (i = 0; i < labels.size(); i++) {
+	  feature = labels.get(i).getAsJsonObject();
+	  type    = ArffAttributeType.valueOf(feature.get("type").getAsString());
+	  addColumn(feature.get("name").getAsString(), type, true);
+	}
+      }
+
+      // arffUrl
+      if (structure.has("arffUrl"))
+	optArffUrl(structure.get("arffUrl").getAsString());
+
+      return self();
     }
   }
 }

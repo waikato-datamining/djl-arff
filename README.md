@@ -43,7 +43,11 @@ Here is an overview of the available `ArffDataset.ArffBuilder` methods:
 * `optArffUrl(String)` - the URL of the ARFF file to load
 * `fromJson` - can instantiate the builder from the JSON settings (as provided by `ArffDataset.toJson`)
 
-Either `optArffFile` or `optArffUrl` needs to be specified. 
+Either methods of the builder instance must be called:
+* 
+* `optArffFile`
+* `optArffUrl`
+* `fromJson` 
 
 
 ## Examples
@@ -65,6 +69,6 @@ Add the following dependency to your `pom.xml`:
     <dependency>
       <groupId>nz.ac.waikato.cms.adams</groupId>
       <artifactId>djl-arff</artifactId>
-      <version>0.0.1</version>
+      <version>0.0.2</version>
     </dependency>
 ```

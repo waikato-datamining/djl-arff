@@ -43,7 +43,7 @@ Here is an overview of the available `ArffDataset.ArffBuilder` methods:
 * `optArffUrl(String)` - the URL of the ARFF file to load
 * `fromJson` - can instantiate the builder from the JSON settings (as provided by `ArffDataset.toJson`)
 
-Either methods of the builder instance must be called:
+Either method of the builder instance must be called:
 * 
 * `optArffFile`
 * `optArffUrl`
